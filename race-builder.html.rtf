@@ -1,0 +1,264 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2868
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 <!DOCTYPE html>\
+<html>\
+<head>\
+<meta charset="utf-8" />\
+<title>Race Builder (Projects + Icons)</title>\
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>\
+\
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>\
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>\
+\
+<style>\
+body \{ margin:0; font-family: Arial; \}\
+\
+#app \{\
+  display:flex;\
+  height:100vh;\
+\}\
+\
+/* Sidebar */\
+#sidebar \{\
+  width:320px;\
+  background:#f7e8d4;\
+  padding:12px;\
+  overflow:auto;\
+\}\
+\
+button, select \{\
+  width:100%;\
+  margin:6px 0;\
+  padding:8px;\
+  border:none;\
+  border-radius:6px;\
+  cursor:pointer;\
+\}\
+\
+.btn-draw \{ background:#279ad4; color:white; \}\
+.btn-pin \{ background:#e44e3b; color:white; \}\
+\
+.icon-row \{\
+  display:grid;\
+  grid-template-columns: 1fr 1fr;\
+  gap:6px;\
+\}\
+\
+.icon-btn \{\
+  font-size:18px;\
+  padding:10px;\
+  border-radius:8px;\
+  background:#fff;\
+\}\
+\
+.project \{\
+  margin-top:10px;\
+  padding:6px;\
+  background:white;\
+  border-radius:6px;\
+\}\
+\
+#map \{ flex:1; \}\
+\
+.small \{\
+  font-size:12px;\
+  opacity:0.7;\
+\}\
+</style>\
+</head>\
+\
+<body>\
+\
+<div id="app">\
+  <div id="sidebar">\
+    <h2>Race Builder</h2>\
+\
+    <h4>Project (Race)</h4>\
+    <select id="projectSelect" onchange="switchProject(this.value)">\
+      <option value="Boston 5K">Boston 5K</option>\
+      <option value="Summer Half">Summer Half</option>\
+      <option value="Custom Race">Custom Race</option>\
+    </select>\
+\
+    <button onclick="newProject()">+ New Project</button>\
+\
+    <h4>Mode</h4>\
+    <button class="btn-draw" onclick="mode='draw'">Draw Route</button>\
+    <button class="btn-pin" onclick="mode='pin'">Add Pin</button>\
+\
+    <h4>Pin Types</h4>\
+    <div class="icon-row">\
+      <button class="icon-btn" onclick="pinType='\uc0\u55356 \u57281  Start/Finish'">\u55356 \u57281 </button>\
+      <button class="icon-btn" onclick="pinType='\uc0\u55357 \u56487  Aid Station'">\u55357 \u56487 </button>\
+      <button class="icon-btn" onclick="pinType='\uc0\u55357 \u57313  Mile'">\u55357 \u57313 </button>\
+      <button class="icon-btn" onclick="pinType='\uc0\u55357 \u56999  Turn'">\u55357 \u56999 </button>\
+      <button class="icon-btn" onclick="pinType='\uc0\u55357 \u56541  Note'">\u55357 \u56541 </button>\
+    </div>\
+\
+    <h4>Distance Layer</h4>\
+    <select onchange="activeDistance=this.value">\
+      <option value="5K">5K</option>\
+      <option value="10K">10K</option>\
+      <option value="Half">Half</option>\
+    </select>\
+\
+    <button onclick="generateMiles()">Auto Mile Markers</button>\
+\
+    <p class="small">\
+      Click map to draw route or place pins depending on mode.\
+    </p>\
+  </div>\
+\
+  <div id="map"></div>\
+</div>\
+\
+<script>\
+mapboxgl.accessToken = "YOUR_MAPBOX_ACCESS_TOKEN";\
+\
+let mode = "draw";\
+let pinType = "\uc0\u55357 \u57313  Mile";\
+let activeDistance = "5K";\
+\
+let projects = \{\
+  "Boston 5K": \{ routes:\{\}, pins:[] \},\
+  "Summer Half": \{ routes:\{\}, pins:[] \},\
+  "Custom Race": \{ routes:\{\}, pins:[] \}\
+\};\
+\
+let currentProject = "Boston 5K";\
+\
+let map = new mapboxgl.Map(\{\
+  container: "map",\
+  style: "mapbox://styles/mapbox/streets-v11",\
+  center: [-90.4, 38.61],\
+  zoom: 12\
+\});\
+\
+function switchProject(name)\{\
+  currentProject = name;\
+  redraw();\
+\}\
+\
+function newProject()\{\
+  const name = prompt("Project name?");\
+  if(!name) return;\
+\
+  projects[name] = \{ routes:\{\}, pins:[] \};\
+\
+  const opt = document.createElement("option");\
+  opt.value = name;\
+  opt.textContent = name;\
+  document.getElementById("projectSelect").appendChild(opt);\
+\
+  document.getElementById("projectSelect").value = name;\
+  switchProject(name);\
+\}\
+\
+map.on("load", () => \{\
+  ["5K","10K","Half"].forEach(id=>\{\
+    projects[currentProject].routes[id] = [];\
+\
+    map.addSource(id, \{\
+      type:"geojson",\
+      data:\{ type:"Feature", geometry:\{ type:"LineString", coordinates:[] \} \}\
+    \});\
+\
+    map.addLayer(\{\
+      id:id,\
+      type:"line",\
+      source:id,\
+      paint:\{\
+        "line-color": id==="5K"?"#279ad4":id==="10K"?"#e44e3b":"#fec52c",\
+        "line-width":4,\
+        "line-opacity":0.7\
+      \}\
+    \});\
+  \});\
+\});\
+\
+map.on("click", (e)=>\{\
+  const p = projects[currentProject];\
+\
+  if(mode==="draw")\{\
+    if(!p.routes[activeDistance]) p.routes[activeDistance]=[];\
+\
+    p.routes[activeDistance].push([e.lngLat.lng,e.lngLat.lat]);\
+\
+    map.getSource(activeDistance).setData(\{\
+      type:"Feature",\
+      geometry:\{\
+        type:"LineString",\
+        coordinates:p.routes[activeDistance]\
+      \}\
+    \});\
+  \}\
+\
+  if(mode==="pin")\{\
+    const marker = new mapboxgl.Marker()\
+      .setLngLat([e.lngLat.lng,e.lngLat.lat])\
+      .setPopup(new mapboxgl.Popup().setText(pinType))\
+      .addTo(map);\
+\
+    p.pins.push(\{ type:pinType, lng:e.lngLat.lng, lat:e.lngLat.lat \});\
+  \}\
+\});\
+\
+function redraw()\{\
+  const p = projects[currentProject];\
+\
+  ["5K","10K","Half"].forEach(id=>\{\
+    if(map.getSource(id))\{\
+      map.getSource(id).setData(\{\
+        type:"Feature",\
+        geometry:\{\
+          type:"LineString",\
+          coordinates:p.routes[id] || []\
+        \}\
+      \});\
+    \}\
+  \});\
+\}\
+\
+function generateMiles()\{\
+  const coords = projects[currentProject].routes[activeDistance];\
+  if(!coords || coords.length<2)\{\
+    alert("Draw a route first");\
+    return;\
+  \}\
+\
+  let dist=0, mile=1;\
+\
+  for(let i=1;i<coords.length;i++)\{\
+    dist += getDist(coords[i-1],coords[i]);\
+\
+    if(dist>=mile)\{\
+      new mapboxgl.Marker(\{color:"black"\})\
+        .setLngLat(coords[i])\
+        .setPopup(new mapboxgl.Popup().setText("Mile "+mile))\
+        .addTo(map);\
+      mile++;\
+    \}\
+  \}\
+\}\
+\
+function getDist(a,b)\{\
+  const R=3958.8;\
+  const dLat=(b[1]-a[1])*Math.PI/180;\
+  const dLon=(b[0]-a[0])*Math.PI/180;\
+  const lat1=a[1]*Math.PI/180;\
+  const lat2=b[1]*Math.PI/180;\
+\
+  const x=Math.sin(dLat/2)**2+\
+    Math.sin(dLon/2)**2*Math.cos(lat1)*Math.cos(lat2);\
+\
+  return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));\
+\}\
+</script>\
+\
+</body>\
+</html>}
